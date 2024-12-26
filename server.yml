@@ -94,12 +94,17 @@
               become: false
               delegate_to: localhost
 
+            - name: Remove existing localhost directory if it exists
+              file:
+                path: configs/localhost
+                state: absent
+              when: inventory_hostname == 'localhost'
+
             - name: Create a symlink if deploying to localhost
               file:
                 src: "{{ IP_subject_alt_name }}"
                 dest: configs/localhost
                 state: link
-                force: true
               when: inventory_hostname == 'localhost'
 
             - name: Import tmpfs tasks

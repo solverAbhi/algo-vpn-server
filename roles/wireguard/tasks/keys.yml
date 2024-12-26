@@ -1,4 +1,18 @@
 ---
+- name: Log wireguard_pki_path
+  debug:
+    msg: "The current wireguard_pki_path is: {{ wireguard_pki_path }}"
+
+- name: Verify private directory exists
+  stat:
+    path: "{{ wireguard_pki_path }}/private"
+  register: private_dir_stat
+
+- name: Fail if private directory does not exist
+  fail:
+    msg: "The private directory does not exist at {{ wireguard_pki_path }}/private"
+  when: not private_dir_stat.stat.exists
+
 - name: Delete the lock files
   file:
     dest: "{{ config_prefix|default('/') }}etc/wireguard/private_{{ item }}.lock"
@@ -16,6 +30,12 @@
   with_items:
     - "{{ users }}"
     - "{{ IP_subject_alt_name }}"
+
+- name: Debug generated private keys
+  debug:
+    msg: "Generated private key for {{ item.item }}: {{ item.stdout }}"
+  with_items: "{{ wg_genkey['results'] }}"
+  when: item.changed
 
 - block:
     - name: Save private keys
@@ -38,44 +58,12 @@
         - "{{ IP_subject_alt_name }}"
   when: wg_genkey.changed
 
-- name: Delete the preshared lock files
-  file:
-    dest: "{{ config_prefix|default('/') }}etc/wireguard/preshared_{{ item }}.lock"
-    state: absent
-  when: keys_clean_all|bool
+- name: Debug private keys saved path
+  debug:
+    msg: "Private key saved at {{ wireguard_pki_path }}/private/{{ item }}"
   with_items:
     - "{{ users }}"
     - "{{ IP_subject_alt_name }}"
-
-- name: Generate preshared keys
-  command: wg genpsk
-  register: wg_genpsk
-  args:
-    creates: "{{ config_prefix|default('/') }}etc/wireguard/preshared_{{ item }}.lock"
-  with_items:
-    - "{{ users }}"
-    - "{{ IP_subject_alt_name }}"
-
-- block:
-    - name: Save preshared keys
-      copy:
-        dest: "{{ wireguard_pki_path }}/preshared/{{ item['item'] }}"
-        content: "{{ item['stdout'] }}"
-        mode: "0600"
-      no_log: "{{ no_log|bool }}"
-      when: item.changed
-      with_items: "{{ wg_genpsk['results'] }}"
-      delegate_to: localhost
-      become: false
-
-    - name: Touch the preshared lock file
-      file:
-        dest: "{{ config_prefix|default('/') }}etc/wireguard/preshared_{{ item }}.lock"
-        state: touch
-      with_items:
-        - "{{ users }}"
-        - "{{ IP_subject_alt_name }}"
-  when: wg_genpsk.changed
 
 - name: Generate public keys
   shell: |
@@ -90,6 +78,11 @@
     - "{{ users }}"
     - "{{ IP_subject_alt_name }}"
 
+- name: Debug generated public keys
+  debug:
+    msg: "Generated public key for {{ item.item }}: {{ item.stdout }}"
+  with_items: "{{ wg_pubkey['results'] }}"
+
 - name: Save public keys
   copy:
     dest: "{{ wireguard_pki_path }}/public/{{ item['item'] }}"
@@ -99,3 +92,15 @@
   with_items: "{{ wg_pubkey['results'] }}"
   delegate_to: localhost
   become: false
+
+- name: Debug public keys saved path
+  debug:
+    msg: "Public key saved at {{ wireguard_pki_path }}/public/{{ item }}"
+  with_items:
+    - "{{ users }}"
+    - "{{ IP_subject_alt_name }}"
+
+- name: Debug wireguard_pki_path for all users
+  debug:
+    msg: "Verifying private keys for items: {{ users }} and {{ IP_subject_alt_name }}"
+

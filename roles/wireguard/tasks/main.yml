@@ -1,4 +1,18 @@
 ---
+- name: Print the value of item and path
+  debug:
+    msg: "The path being processed is: {{ item }}"
+  with_items:
+    - "{{ wireguard_pki_path }}/preshared"
+    - "{{ wireguard_pki_path }}/private"
+    - "{{ wireguard_pki_path }}/public"
+    - "{{ wireguard_config_path }}/apple/ios"
+    - "{{ wireguard_config_path }}/apple/macos"
+  delegate_to: localhost
+- name: Set correct wireguard_pki_path
+  set_fact:
+    wireguard_pki_path: "{{ wireguard_pki_path | regex_replace('/$', '') }}"  
+  
 - name: Ensure the required directories exist
   file:
     dest: "{{ item }}"
@@ -12,6 +26,9 @@
     - "{{ wireguard_config_path }}/apple/macos"
   delegate_to: localhost
   become: false
+- name: Log wireguard_pki_path
+  debug:
+    msg: "The current wireguard_pki_path is: {{ wireguard_pki_path }}"
 
 - name: Include tasks for Ubuntu
   include_tasks: ubuntu.yml

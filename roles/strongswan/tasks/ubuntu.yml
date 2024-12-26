@@ -28,6 +28,7 @@
         - /usr/lib/ipsec/lookip
         - /usr/lib/ipsec/stroke
   tags: apparmor
+  ignore_errors: true
   when: apparmor_enabled|default(false)|bool
 
 - name: Ubuntu | Enable services
