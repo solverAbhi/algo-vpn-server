@@ -9,9 +9,10 @@
     - "{{ wireguard_config_path }}/apple/ios"
     - "{{ wireguard_config_path }}/apple/macos"
   delegate_to: localhost
+
 - name: Set correct wireguard_pki_path
   set_fact:
-    wireguard_pki_path: "{{ wireguard_pki_path | regex_replace('/$', '') }}"  
+    wireguard_pki_path: "{{ wireguard_pki_path | regex_replace('/$', '') }}"  # Remove trailing slash
   
 - name: Ensure the required directories exist
   file:
@@ -26,9 +27,19 @@
     - "{{ wireguard_config_path }}/apple/macos"
   delegate_to: localhost
   become: false
+
 - name: Log wireguard_pki_path
   debug:
     msg: "The current wireguard_pki_path is: {{ wireguard_pki_path }}"
+
+- name: Verify if index.txt exists
+  stat:
+    path: "{{ wireguard_pki_path }}/.pki/index.txt"
+  register: index_txt_stat
+
+- name: Debug index.txt existence
+  debug:
+    msg: "index.txt exists at: {{ index_txt_stat.stat.exists }}"
 
 - name: Include tasks for Ubuntu
   include_tasks: ubuntu.yml
@@ -57,7 +68,7 @@
           with_items: "{{ users }}"
 
         - set_fact:
-            wireguard_users: "{{ (lookup('file', wireguard_pki_path + 'index.txt')).split('\n') }}"
+            wireguard_users: "{{ lookup('file', wireguard_pki_path + 'index.txt') | split('\n') }}"
 
         - name: WireGuard users config generated
           template:
